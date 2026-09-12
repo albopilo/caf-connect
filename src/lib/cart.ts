@@ -1,150 +1,79 @@
-import { useSyncExternalStore } from "react";
-import type { CartLine, MarketingProgram, Product } from "./types";
+import { CART_TTL_MS } from "./config";
+import type { CartItem, MarketingProgram, Product } from "./types";
 
 const KEY = "13e-cart-v1";
-const GUEST_TTL_MS = 60 * 60 * 1000;
 
-type Stored = { lines: CartLine[]; savedAt: number; table: string };
+type Stored = { items: CartItem[]; savedAt: number; persistent: boolean };
 
-let state: Stored = { lines: [], savedAt: Date.now(), table: "Takeaway" };
-let loaded = false;
-const listeners = new Set<() => void>();
-
-function emit() {
-  listeners.add(() => {});
-  listeners.forEach((l) => l());
-}
-
-function persist() {
-  if (typeof window === "undefined") return;
-  state.savedAt = Date.now();
-  window.localStorage.setItem(KEY, JSON.stringify(state));
-}
-
-export function loadCart(isMember: boolean) {
-  if (typeof window === "undefined" || loaded) return;
-  loaded = true;
+export function loadCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (!raw) return;
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as Stored;
-    if (!isMember && Date.now() - parsed.savedAt > GUEST_TTL_MS) {
+    if (!parsed.persistent && Date.now() - parsed.savedAt > CART_TTL_MS) {
       window.localStorage.removeItem(KEY);
-      return;
+      return [];
     }
-    state = parsed;
-    emit();
+    return parsed.items ?? [];
   } catch {
-    window.localStorage.removeItem(KEY);
+    return [];
   }
 }
 
-function subscribe(cb: () => void) {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-}
-
-const serverSnapshot: Stored = { lines: [], savedAt: 0, table: "Takeaway" };
-
-export function useCart() {
-  return useSyncExternalStore(
-    subscribe,
-    () => state,
-    () => serverSnapshot,
-  );
-}
-
-export function setTable(table: string) {
-  state = { ...state, table };
-  persist();
-  emit();
-}
-
-function newId() {
-  return crypto.randomUUID();
-}
-
-export function addLine(
-  product: Product,
-  variant: string | null,
-  opts: { free?: boolean; promoLinkId?: string; qty?: number } = {},
-) {
-  const qty = opts.qty ?? 1;
-  const free = opts.free ?? false;
-  const existing = state.lines.find(
-    (l) => l.productId === product.id && l.variant === variant && l.free === free && !l.promoLinkId,
-  );
-  if (existing && !opts.promoLinkId) {
-    existing.qty += qty;
-  } else {
-    state.lines = [
-      ...state.lines,
-      {
-        lineId: newId(),
-        productId: product.id,
-        name: product.name,
-        variant,
-        unitPrice: free ? 0 : product.pos_sell_price,
-        qty,
-        free,
-        ...(opts.promoLinkId ? { promoLinkId: opts.promoLinkId } : {}),
-      },
-    ];
-  }
-  state = { ...state, lines: [...state.lines] };
-  persist();
-  emit();
-}
-
-export function changeQty(lineId: string, delta: number) {
-  const line = state.lines.find((l) => l.lineId === lineId);
-  if (!line) return;
-  line.qty += delta;
-  let lines = state.lines.filter((l) => l.qty > 0);
-  // removing a buy-line removes its linked free item
-  const remainingIds = new Set(lines.map((l) => l.lineId));
-  lines = lines.filter((l) => !l.promoLinkId || remainingIds.has(l.promoLinkId));
-  state = { ...state, lines: [...lines] };
-  persist();
-  emit();
-}
-
-export function removeLine(lineId: string) {
-  const lines = state.lines.filter((l) => l.lineId !== lineId && l.promoLinkId !== lineId);
-  state = { ...state, lines };
-  persist();
-  emit();
-}
-
-export function setVariant(lineId: string, variant: string) {
-  const line = state.lines.find((l) => l.lineId === lineId);
-  if (!line) return;
-  line.variant = variant;
-  state = { ...state, lines: [...state.lines] };
-  persist();
-  emit();
+export function saveCart(items: CartItem[], persistent: boolean) {
+  if (typeof window === "undefined") return;
+  const payload: Stored = { items, savedAt: Date.now(), persistent };
+  window.localStorage.setItem(KEY, JSON.stringify(payload));
 }
 
 export function clearCart() {
-  state = { lines: [], savedAt: Date.now(), table: state.table };
-  if (typeof window !== "undefined") window.localStorage.removeItem(KEY);
-  emit();
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(KEY);
 }
 
-export function cartSubtotal(lines: CartLine[]) {
-  return lines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0);
+export function newLineId(): string {
+  return crypto.randomUUID();
 }
 
-/** Returns the promo that a just-added product qualifies for, if any. */
-export function matchPromo(
-  programs: MarketingProgram[],
+export function cartCount(items: CartItem[]): number {
+  return items.reduce((sum, item) => sum + item.qty, 0);
+}
+
+export function cartSubtotal(items: CartItem[]): number {
+  return items.reduce((sum, item) => sum + (item.isFree ? 0 : item.unitPrice * item.qty), 0);
+}
+
+/** Returns the program triggered by adding this product, if any. */
+export function findPromoFor(
   productId: string,
-): MarketingProgram | undefined {
-  return programs.find(
-    (p) => p.active && p.type === "buy_x_get_y" && p.buy_product_ids.includes(productId),
+  programs: MarketingProgram[],
+): MarketingProgram | null {
+  return (
+    programs.find((program) => program.active && program.buy_product_ids.includes(productId)) ??
+    null
   );
 }
 
-export function hasPromoFor(lineId: string) {
-  return state.lines.some((l) => l.promoLinkId === lineId);
+export function buildFreeItem(
+  program: MarketingProgram,
+  freeProduct: Product,
+  variant: string | null,
+  promoLinkId: string,
+): CartItem {
+  return {
+    lineId: newLineId(),
+    productId: freeProduct.id,
+    name: freeProduct.name,
+    variant,
+    unitPrice: 0,
+    qty: program.free_qty,
+    isFree: true,
+    promoLinkId,
+  };
+}
+
+/** Removing a buy line also removes its linked free line. */
+export function removeLine(items: CartItem[], lineId: string): CartItem[] {
+  return items.filter((item) => item.lineId !== lineId && item.promoLinkId !== lineId);
 }

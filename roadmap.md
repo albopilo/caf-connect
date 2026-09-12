@@ -1,46 +1,43 @@
 # 13e Café — Build Roadmap
 
-Legend: [x] done · [ ] not done · [!] blocked
-
 ## M1 — Foundation
 - [ ] Lovable Cloud enabled
-- [ ] Warm café design system (cream/espresso/sage/amber) in src/styles.css
-- [ ] Database schema + RLS + GRANTs for all tables
-- [ ] Email/password auth enabled, roles via user_roles table
+- [ ] Database schema + RLS + GRANTs (products, marketing_programs, members, orders,
+      order_status_history, vouchers, voucher_redemptions, loyalty_transactions,
+      staff_push_tokens, user_roles)
+- [ ] Warm café design system (cream/espresso/sage), no purple
+- [ ] Shared lib: types, format, cart, loyalty, config
 
 ## M2 — Customer surface
-- [ ] Menu page with category tabs + product cards
-- [ ] Variant selection modal (search when >12 variants)
-- [ ] Cart with localStorage + 1h TTL for guests
-- [ ] Buy X get Y promo auto-detection
-- [ ] Checkout with SERVER-COMPUTED totals
+- [ ] Menu page (category tabs, product cards, variant modal)
+- [ ] Cart with localStorage + 1h TTL + promo buy X get Y
+- [ ] Checkout with SERVER-computed totals
 - [ ] Payment method (cash/QRIS, QRIS-only for Mille tables)
 - [ ] QRIS proof upload to storage
-- [ ] Member register/login, loyalty tiers display
 - [ ] Operational hours notice / Monday closed
 
-## M3 — Staff surface
-- [ ] Unified staff dashboard with location filter
-- [ ] Realtime order stream (in-place card updates)
-- [ ] Status workflow pending→preparing→served/cancelled
-- [ ] Loyalty accrual on served, reversal on cancelled
-- [ ] Date picker + filter tabs
-- [ ] Audio chime with gesture unlock
+## M3 — Auth & loyalty
+- [ ] Email/password auth (sign up, sign in)
+- [ ] Member profile + tiers Classic/Bronze/Silver/Gold
+- [ ] Loyalty accrual on "served", reversal on "cancelled"
+
+## M4 — Staff
+- [ ] Single staff dashboard with location filter
+- [ ] Realtime order stream (per-card updates)
+- [ ] Status workflow + history
+- [ ] Filter tabs, date picker
+- [ ] Audio chime (repeating, gesture unlocked)
 - [ ] Push token registration
 
-## M4 — Admin surface
-- [ ] Product CRUD + hide toggle + photos
-- [ ] Bulk variant paste, CSV import / XLSX export
-- [ ] Marketing programs (buy X get Y)
-- [ ] Voucher management + redemption history
+## M5 — Admin
+- [ ] Product CRUD + bulk variant paste
+- [ ] CSV/XLSX import/export
+- [ ] Marketing programs
+- [ ] Vouchers + redemption history
 - [ ] Member overview
 
-## M5 — Olsera POS integration
-- [!] Product sync from Olsera (needs API credentials)
-- [!] Order push to Olsera (needs API credentials)
-- [!] Order status polling (needs API credentials)
-- [!] Customer sync (needs API credentials)
-
-## Notes
-- Stack is TanStack Start, so server logic uses server functions instead of
-  separate edge functions; same security boundary.
+## M6 — Olsera POS integration (blocked: no credentials)
+- [ ] sync products from Olsera
+- [ ] push order to Olsera
+- [ ] poll order status
+- [ ] push customer

@@ -1,5 +1,3 @@
-export type Tier = "Classic" | "Bronze" | "Silver" | "Gold";
-
 export type Product = {
   id: string;
   name: string;
@@ -22,16 +20,15 @@ export type MarketingProgram = {
   free_variant: string | null;
 };
 
-export type Member = {
-  user_id: string;
+export type CartItem = {
+  lineId: string;
+  productId: string;
   name: string;
-  email: string | null;
-  phone: string | null;
-  birthdate: string | null;
-  tier: Tier;
-  discount_rate: number;
-  redeemable_points: number;
-  spending_since_upgrade: number;
+  variant: string | null;
+  unitPrice: number;
+  qty: number;
+  isFree: boolean;
+  promoLinkId?: string;
 };
 
 export type OrderItem = {
@@ -40,23 +37,24 @@ export type OrderItem = {
   variant: string | null;
   qty: number;
   unitPrice: number;
-  free: boolean;
+  isFree: boolean;
 };
 
-export type OrderStatus = "pending" | "preparing" | "served" | "cancelled";
-
-export type Order = {
-  id: string;
-  member_id: string | null;
-  table_name: string;
-  items: OrderItem[];
+export type OrderTotals = {
   subtotal: number;
   discount: number;
   tax: number;
   delivery_fee: number;
   total: number;
   grand_total: number;
-  status: OrderStatus;
+};
+
+export type OrderRow = OrderTotals & {
+  id: string;
+  member_id: string | null;
+  table_name: string;
+  items: OrderItem[];
+  status: "pending" | "preparing" | "served" | "cancelled";
   payment_method: "cash" | "qris";
   payment_status: "none" | "awaiting-proof" | "paid";
   proof_url: string | null;
@@ -66,13 +64,14 @@ export type Order = {
   created_at: string;
 };
 
-export type CartLine = {
-  lineId: string;
-  productId: string;
-  name: string;
-  variant: string | null;
-  unitPrice: number;
-  qty: number;
-  free: boolean;
-  promoLinkId?: string;
+export type Member = {
+  user_id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  birthdate: string | null;
+  tier: string;
+  discount_rate: number;
+  redeemable_points: number;
+  spending_since_upgrade: number;
 };
